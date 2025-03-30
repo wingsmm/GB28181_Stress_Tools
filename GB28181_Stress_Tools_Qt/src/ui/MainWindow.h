@@ -27,8 +27,6 @@ public:
 
 private slots:
     void onStartButtonClicked();
-    void onStopButtonClicked();
-    void onBrowseButtonClicked();
     void onDeviceCreated(std::shared_ptr<Device> device);
     void onDeviceStatusUpdated(int index, Message msg);
 
@@ -45,14 +43,11 @@ private:
 
     QTableWidget *m_deviceTable;
     QPushButton *m_startButton;
-    QPushButton *m_stopButton;
-    QPushButton *m_browseButton;
     QLineEdit *m_serverSipIdEdit;
     QLineEdit *m_serverIpEdit;
     QSpinBox *m_serverPortSpin;
     QLineEdit *m_passwordEdit;
     QSpinBox *m_deviceCountSpin;
-    QLineEdit *m_configPathEdit;
 
     DeviceThread *m_deviceThread;
     QMap<int, std::shared_ptr<Device>> m_devices;
@@ -61,4 +56,4 @@ private:
     Ui::MainWindow *ui;
 };
 
-#endif // MAINWINDOW_H 
+#endif // MAINWINDOW_H

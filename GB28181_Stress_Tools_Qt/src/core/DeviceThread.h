@@ -5,7 +5,8 @@
 #include <QWaitCondition>
 #include <QString>
 #include <memory>
-#include "Device.h"
+#include <vector>
+#include "../common/Device.h"
 
 class DeviceThread : public QThread
 {
@@ -34,4 +35,7 @@ private:
     int m_deviceCount;
     bool m_isRunning;
     QMutex m_mutex;
+    
+    // Store device pointers for proper cleanup
+    std::vector<std::shared_ptr<Device>> m_devices;
 }; 

@@ -3,7 +3,7 @@
 #include <QFile>
 #include <QTemporaryFile>
 #include <QDir>
-#include "GB28181_Stress_Tools/LoadH264.h"
+#include "../common/LoadH264.h"
 
 DeviceThread::DeviceThread(QObject *parent)
     : QThread(parent), m_isRunning(false), m_serverPort(5060), m_deviceCount(1)
@@ -30,9 +30,59 @@ void DeviceThread::start(const QString& serverSipId, const QString& serverIp, in
 
 void DeviceThread::stop()
 {
-    QMutexLocker locker(&m_mutex);
+    qDebug() << "Stopping device thread...";
+    
+    // First set the running flag to false
+    m_mutex.lock();
     m_isRunning = false;
+    
+    // Make a copy of the devices list to avoid issues if the list is modified during deregistration
+    auto devicesCopy = m_devices;
+    m_mutex.unlock();
+    
+    // Properly unregister each device using the public API
+    qDebug() << "Unregistering" << devicesCopy.size() << "devices...";
+    for (auto& device : devicesCopy) {
+        if (device) {
+            qDebug() << "Stopping device" << device->list_index + 1;
+            
+            // Stop device using the public methods
+            device->stopRunning();
+            
+            // If the device is pushing video, stop it
+            if (device->isPushing()) {
+                device->stopPushingStream();
+                qDebug() << "Stopping video push for device" << device->list_index + 1;
+            }
+            
+            // Stop heartbeat
+            if (device->isHeartbeatRunning()) {
+                device->stopHeartbeat();
+                qDebug() << "Stopping heartbeat for device" << device->list_index + 1;
+            }
+            
+            // Stop mobile position updates
+            if (device->isMobilePositionRunning()) {
+                device->stopMobilePosition();
+                qDebug() << "Stopping position updates for device" << device->list_index + 1;
+            }
+        }
+    }
+    
+    // Wait a moment for devices to process stop signals
+    msleep(500);
+    
+    // Clear devices list
+    m_mutex.lock();
+    m_devices.clear();
+    m_mutex.unlock();
+    
+    qDebug() << "All devices unregistered, waiting for thread to finish...";
+    
+    // Wait for thread to complete
     wait();
+    
+    qDebug() << "Device thread stopped successfully";
 }
 
 void DeviceThread::run()
@@ -122,6 +172,11 @@ void DeviceThread::run()
             qDebug() << "Device" << i+1 << "status:" << msg.content;
             emit deviceStatusUpdated(i, msg);
         });
+        
+        // Store device for later cleanup
+        m_mutex.lock();
+        m_devices.push_back(device);
+        m_mutex.unlock();
         
         // Notify main thread that device has been created
         qDebug() << "Sending device created signal:" << i+1;

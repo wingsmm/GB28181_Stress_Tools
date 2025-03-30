@@ -1,3 +1,4 @@
+# MFC相关
 /.vs
 /Debug
 /GB28181_Stress_Tools/Debug
@@ -9,6 +10,7 @@
 
 # Qt相关
 /build*/
+/GB28181_Stress_Tools_Qt/build*/
 *.pro.user*
 *.qmake.stash
 *.o
@@ -20,3 +22,10 @@ Makefile*
 /debug/
 /release/
 /.qtc_clangd/
+.qtc/
+*.autosave
+*.user
+*.stash
+object_script.*
+bin/
+lib/

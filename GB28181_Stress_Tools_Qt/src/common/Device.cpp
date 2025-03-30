@@ -1,5 +1,4 @@
-#include "qt_adapters.h"
-#include "GB28181_Stress_Tools/Device.h"
+#include "Device.h"
 #include <sstream>
 #include <iostream>
 #include <string>
@@ -8,19 +7,15 @@
 #include <thread>
 #include <cstring>
 #include <functional>
-#include <pugixml.hpp>
+#include "pugixml.hpp"
 #include <QtCore/QDebug>
-#include "GB28181_Stress_Tools/gb28181_header_maker.h"
+#include "gb28181_header_maker.h"
 #include <iomanip>
 #include <ctime>
 #include <QTimer>
 
-// 使用qt_adapters.h中的函数替代MFC中的功能
-// 这是一个精简版本，只实现必要功能
-
-// 提供详细的错误信息函数
 void logSipError(const char* operation, int errorCode, int index) {
-    qDebug() << "SIP错误: 设备" << index+1 << operation << "错误码:" << errorCode;
+    qDebug() << "SIP Error: Device" << index+1 << operation << "Error code:" << errorCode;
 }
 
 void Device::mobile_position_task() {
@@ -172,7 +167,7 @@ void Device::process_call(eXosip_event_t * evt) {
 
     eXosip_call_send_answer(sip_context, evt->tid, 200, message);
 
-    cout << "reply sdp " << sdp_str.c_str() << endl;
+    std::cout << "reply sdp " << sdp_str.c_str() << std::endl;
 }
 
 void Device::heartbeat_task() {
@@ -225,7 +220,6 @@ void Device::push_task() {
 
     int time_base = 90000;
     int fps = 25;
-    int send_packet_interval = 1000 / fps;
 
     int interval = time_base / fps;
     long pts = 0;
@@ -247,8 +241,14 @@ void Device::push_task() {
                 break;
             }
             Nalu *nalu = nalu_vector.at(i);
-            qDebug() << "Device" << list_index+1 << "Processing NALU" << i+1 << "/" << size 
-                     << "- Type:" << nalu->type << "Length:" << nalu->length;
+            
+            // Enhanced NALU logging in MFC format
+            qDebug() << QString("%1| %2| %3| %4| %5|")
+                .arg(i, 5)
+                .arg(pts, 8)
+                .arg("HIGH", 8)
+                .arg(nalu->type == NALU_TYPE_IDR ? "IDR" : "SLICE", 6)
+                .arg(nalu->length, 8);
 
             NaluType type = nalu->type;
             int length = nalu->length;
@@ -384,7 +384,26 @@ void Device::process_request() {
         }
         
         qDebug() << "Device" << list_index+1 << "received SIP event type:" << evt->type;
-
+        
+        // Log event details
+        if (evt->type == EXOSIP_MESSAGE_NEW && MSG_IS_MESSAGE(evt->request)) {
+            osip_body_t *body = NULL;
+            osip_message_get_body(evt->request, 0, &body);
+            if (body != NULL) {
+                qDebug() << "Device" << list_index+1 << "received message body:" << body->body;
+            }
+        }
+        
+        // Log registration events
+        if (evt->type == EXOSIP_REGISTRATION_SUCCESS) {
+            qDebug() << "Device" << list_index+1 << "Registration successful";
+        }
+        
+        // Log call events
+        if (evt->type == EXOSIP_CALL_INVITE) {
+            qDebug() << "Device" << list_index+1 << "Received call invite";
+        }
+        
         switch (evt->type) {
         case EXOSIP_IN_SUBSCRIPTION_NEW: {
             qDebug() << "Device" << list_index+1 << "received subscription request";

@@ -2,6 +2,13 @@
     "files.associations": {
         "string": "cpp",
         "iostream": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "thread": "cpp",
+        "ctime": "cpp",
+        "memory": "cpp",
+        "cstring": "cpp",
+        "iomanip": "cpp",
+        "chrono": "cpp",
+        "functional": "cpp"
     }
 }

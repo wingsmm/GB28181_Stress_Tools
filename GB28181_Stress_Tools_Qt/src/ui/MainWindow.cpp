@@ -81,12 +81,8 @@ void MainWindow::setupUi()
     // Button area
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     m_startButton = new QPushButton("Start", centralWidget);
-    m_stopButton = new QPushButton("Stop", centralWidget);
-    m_browseButton = new QPushButton("Browse", centralWidget);
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_startButton);
-    buttonLayout->addWidget(m_stopButton);
-    buttonLayout->addWidget(m_browseButton);
 
     // Device table
     m_deviceTable = new QTableWidget(centralWidget);
@@ -112,15 +108,13 @@ void MainWindow::setupConnections()
     connect(m_deviceThread, &DeviceThread::deviceCreated, this, &MainWindow::onDeviceCreated);
     connect(m_deviceThread, &DeviceThread::deviceStatusUpdated, this, &MainWindow::onDeviceStatusUpdated);
     connect(m_startButton, &QPushButton::clicked, this, &MainWindow::onStartButtonClicked);
-    connect(m_stopButton, &QPushButton::clicked, this, &MainWindow::onStopButtonClicked);
-    connect(m_browseButton, &QPushButton::clicked, this, &MainWindow::onBrowseButtonClicked);
 }
 
 // Get config file path
 QString MainWindow::getConfigFilePath()
 {
     // Define source directory config file path (highest priority)
-    QString sourcePath = "../GB28181_Stress_Tools/config.xml";
+    QString sourcePath = "./config/config.xml";
     
     // If source directory config exists, use it
     if (QFile::exists(sourcePath)) {
@@ -130,8 +124,8 @@ QString MainWindow::getConfigFilePath()
     
     // Other possible locations
     QStringList possiblePaths = {
-        "config.xml",                            // Current directory
-        "GB28181_Stress_Tools/config.xml",       // Project subdirectory
+        "./config.xml",                          // Current directory
+        "config/config.xml",                     // Config subdirectory
         QCoreApplication::applicationDirPath() + "/config.xml"  // Application directory
     };
     
@@ -250,21 +244,10 @@ void MainWindow::saveConfig()
     config.append_child("count").text().set(m_deviceCountSpin->value());
     
     // Get config file path
-    QString configPath = getConfigFilePath();
-    
-    // Try to save to source directory, ensure source and run directory sync
-    QString sourcePath = "../GB28181_Stress_Tools/config.xml";
+    QString configPath = "./config/config.xml";
     
     // Save config
     bool mainSaveResult = saveXmlToFile(doc, configPath);
-    
-    // If config path is not source directory, also save to source directory
-    if (configPath != sourcePath) {
-        bool sourceSaveResult = saveXmlToFile(doc, sourcePath);
-        if (sourceSaveResult) {
-            qDebug() << "Config saved to source directory:" << sourcePath;
-        }
-    }
     
     qDebug() << "Config saved";
 }
@@ -306,6 +289,7 @@ bool MainWindow::saveXmlToFile(pugi::xml_document& doc, const QString& filePath)
 void MainWindow::onStartButtonClicked()
 {
     if (!m_isStarted) {
+        // If not started, perform start operations
         if (!checkParams()) {
             return;
         }
@@ -316,11 +300,15 @@ void MainWindow::onStartButtonClicked()
         startDevices();
         m_startButton->setText("Stop");
         m_isStarted = true;
+        
+        qDebug() << "Devices started: " << m_deviceCountSpin->value();
     } else {
-        // Stop devices
+        // If already started, perform stop operations
         stopDevices();
         m_startButton->setText("Start");
         m_isStarted = false;
+        
+        qDebug() << "Devices stopped";
     }
 }
 
@@ -408,20 +396,5 @@ void MainWindow::onDeviceStatusUpdated(int index, Message msg)
             }
             break;
         }
-    }
-}
-
-void MainWindow::onStopButtonClicked()
-{
-    stopDevices();
-    m_startButton->setText("Start");
-    m_isStarted = false;
-}
-
-void MainWindow::onBrowseButtonClicked()
-{
-    QString path = QFileDialog::getOpenFileName(this, "Select Config File", "", "XML Files (*.xml)");
-    if (!path.isEmpty()) {
-        m_configPathEdit->setText(path);
     }
 } 
