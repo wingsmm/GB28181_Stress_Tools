@@ -1,19 +1,21 @@
-#pragma once
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QTableWidget>
 #include <QPushButton>
 #include <QLineEdit>
-#include <QLabel>
 #include <QSpinBox>
-#include <QVector>
-#include <QThread>
-#include <memory>
+#include <QMap>
+#include <QDateTime>
+#include "DeviceThread.h"
 #include "Device.h"
 #include "Message.h"
 #include <pugixml.hpp>
 
-class DeviceThread;
+namespace Ui {
+class MainWindow;
+}
 
 class MainWindow : public QMainWindow
 {
@@ -23,33 +25,40 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-public slots:
-    void updateDeviceStatus(int index, Message msg);
-    void deviceCreated(std::shared_ptr<Device> device);
-
 private slots:
     void onStartButtonClicked();
+    void onStopButtonClicked();
+    void onBrowseButtonClicked();
+    void onDeviceCreated(std::shared_ptr<Device> device);
+    void onDeviceStatusUpdated(int index, Message msg);
 
 private:
     void setupUi();
+    void setupConnections();
+    void loadConfig();
+    void saveConfig();
     bool checkParams();
     void startDevices();
     void stopDevices();
-    void loadConfig();
-    void saveConfig();
     QString getConfigFilePath();
     bool saveXmlToFile(pugi::xml_document& doc, const QString& filePath);
-    
-private:
+
+    QTableWidget *m_deviceTable;
+    QPushButton *m_startButton;
+    QPushButton *m_stopButton;
+    QPushButton *m_browseButton;
     QLineEdit *m_serverSipIdEdit;
     QLineEdit *m_serverIpEdit;
     QSpinBox *m_serverPortSpin;
     QLineEdit *m_passwordEdit;
     QSpinBox *m_deviceCountSpin;
-    QPushButton *m_startButton;
-    QTableWidget *m_deviceTable;
+    QLineEdit *m_configPathEdit;
 
-    bool m_isStarted;
-    QVector<std::shared_ptr<Device>> m_deviceVector;
     DeviceThread *m_deviceThread;
-}; 
+    QMap<int, std::shared_ptr<Device>> m_devices;
+    bool m_isStarted;
+
+    Ui::MainWindow *ui;
+};
+
+#endif // MAINWINDOW_H 

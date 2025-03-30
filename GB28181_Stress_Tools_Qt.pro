@@ -24,6 +24,7 @@ SOURCES += \
 HEADERS += \
     MainWindow.h \
     DeviceThread.h \
+    # Device_qt.h \
     qt_adapters.h \
     GB28181_Stress_Tools/Message.h \
     GB28181_Stress_Tools/Device.h \
@@ -48,7 +49,12 @@ INCLUDEPATH += \
     ./include/ffmpeg/libavcodec \
     ./include/ffmpeg/libavformat \
     ./include/ffmpeg/libavutil \
-    ./include/ffmpeg/libswscale
+    ./include/ffmpeg/libswscale \
+    $$[QT_INSTALL_HEADERS] \
+    $$[QT_INSTALL_HEADERS]/QtCore \
+    $$[QT_INSTALL_HEADERS]/QtGui \
+    $$[QT_INSTALL_HEADERS]/QtWidgets \
+    $$[QT_INSTALL_HEADERS]/QtNetwork
 
 # 库文件路径设置 - 使用qmake变量和绝对路径
 LIB_PATH = $$PWD/lib
@@ -71,7 +77,7 @@ RESOURCES += \
     resources.qrc
 
 # 禁用一些警告
-QMAKE_CXXFLAGS += -wd4819 -wd4311 -wd4302
+QMAKE_CXXFLAGS += -wd4819 -wd4311 -wd4302 -wd4099
 
 # 复制配置文件到编译目录
 CONFIG_FILE = $$PWD/config.xml

@@ -9,8 +9,11 @@
 #include <cstring>
 #include <functional>
 #include <pugixml.hpp>
-#include <QDebug>
+#include <QtCore/QDebug>
 #include "GB28181_Stress_Tools/gb28181_header_maker.h"
+#include <iomanip>
+#include <ctime>
+#include <QTimer>
 
 // 使用qt_adapters.h中的函数替代MFC中的功能
 // 这是一个精简版本，只实现必要功能
@@ -87,27 +90,28 @@ void Device::create_mobile_position_task() {
 }
 
 void Device::process_call(eXosip_event_t * evt) {
+    qDebug() << "Device" << list_index+1 << "Processing INVITE request";
     // 解析sdp
     osip_body_t *sdp_body = NULL;
     osip_message_get_body(evt->request, 0, &sdp_body);
     if (sdp_body != NULL) {
-        printf("request >>> %s", sdp_body->body);
+        qDebug() << "Device" << list_index+1 << "Received SDP body:" << sdp_body->body;
     }
     else {
-        cout << "sdp error" << endl;
+        qDebug() << "Device" << list_index+1 << "SDP body is empty";
         return;
     }
     sdp_message_t * sdp = NULL;
 
     if (OSIP_SUCCESS != sdp_message_init(&sdp)) {
-        cout << "sdp_message_init failed" << endl;
+        qDebug() << "Device" << list_index+1 << "SDP message initialization failed";
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "sdp_message_init failed" });
         }
         return;
     }
     if (OSIP_SUCCESS != sdp_message_parse(sdp, sdp_body->body)) {
-        cout << "sdp_message_parse failed" << endl;
+        qDebug() << "Device" << list_index+1 << "SDP message parsing failed";
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "sdp_message_parse failed" });
         }
@@ -119,6 +123,8 @@ void Device::process_call(eXosip_event_t * evt) {
     target_port = atoi(media->m_port);
     char * protocol = media->m_proto;
     is_tcp = strstr(protocol, "TCP");
+    qDebug() << "Device" << list_index+1 << "Target info - IP:" << target_ip << "Port:" << target_port << "Protocol:" << (is_tcp ? "TCP" : "UDP");
+    
     if (callback != nullptr) {
         char port[5];
         snprintf(port, 5, "%d", target_port);
@@ -129,6 +135,8 @@ void Device::process_call(eXosip_event_t * evt) {
     listen_port = get_port();
     char port[10];
     snprintf(port, 10, "%d", listen_port);
+    qDebug() << "Device" << list_index+1 << "Local listening port:" << listen_port;
+    
     if (callback != nullptr) {
         callback(list_index, Message{ PULL_STREAM_PORT_TYPE, port });
     }
@@ -190,12 +198,13 @@ void Device::heartbeat_task() {
 }
 
 void Device::push_task() {
+    qDebug() << "Device" << list_index+1 << "Starting push stream task";
     udp_client = new UDPClient(is_tcp);
 
     int status = is_tcp ? udp_client->bind(local_ip, listen_port, target_ip, target_port) : udp_client->bind(local_ip, listen_port);
 
     if (0 != status) {
-        cout << "client bind port failed" << endl;
+        qDebug() << "Device" << list_index+1 << "Client port binding failed";
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "Failed to bind local port or connect to remote" });
         }
@@ -205,6 +214,8 @@ void Device::push_task() {
         }
         return;
     }
+    qDebug() << "Device" << list_index+1 << "Client binding successful - Local IP:" << local_ip << "Port:" << listen_port 
+             << "Target IP:" << target_ip << "Port:" << target_port;
 
     char ps_header[PS_HDR_LEN];
     char ps_system_header[SYS_HDR_LEN];
@@ -228,6 +239,7 @@ void Device::push_task() {
 
     extern std::vector<Nalu*> nalu_vector;
     size_t size = nalu_vector.size();
+    qDebug() << "Device" << list_index+1 << "Total NALU count:" << size;
 
     while (is_pushing) {
         for (int i = 0; i < size; i++) {
@@ -235,6 +247,8 @@ void Device::push_task() {
                 break;
             }
             Nalu *nalu = nalu_vector.at(i);
+            qDebug() << "Device" << list_index+1 << "Processing NALU" << i+1 << "/" << size 
+                     << "- Type:" << nalu->type << "Length:" << nalu->length;
 
             NaluType type = nalu->type;
             int length = nalu->length;
@@ -461,8 +475,119 @@ void Device::process_request() {
                             qDebug() << "Device" << list_index+1 << "failed to create directory reply";
                         }
                     }
+                    else if ("DeviceInfo" == cmd) {
+                        qDebug() << "Device" << list_index+1 << "replied to device info query";
+                        
+                        std::stringstream ss;
+                        ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+                        ss << "<Response>\r\n";
+                        ss << "<CmdType>DeviceInfo</CmdType>\r\n";
+                        ss << "<SN>" << sn_node.child_value() << "</SN>\r\n";
+                        ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
+                        ss << "<DeviceName>IPC</DeviceName>\r\n";
+                        ss << "<Manufacturer>GB28181_Stress_Tools</Manufacturer>\r\n";
+                        ss << "<Model>Qt</Model>\r\n";
+                        ss << "<Firmware>1.0.0</Firmware>\r\n";
+                        ss << "<MaxCamera>1</MaxCamera>\r\n";
+                        ss << "<MaxAlarm>0</MaxAlarm>\r\n";
+                        ss << "<DeviceType>IPC</DeviceType>\r\n";
+                        ss << "<Channel>1</Channel>\r\n";
+                        ss << "</Response>\r\n";
+                        
+                        osip_message_t* request = create_request();
+                        if (request != NULL) {
+                            osip_message_set_content_type(request, "Application/MANSCDP+xml");
+                            osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
+                            send_request(request);
+                            qDebug() << "Device" << list_index+1 << "sent device info reply successfully";
+                        } else {
+                            qDebug() << "Device" << list_index+1 << "failed to create device info reply";
+                        }
+                    }
+                    else if ("DeviceStatus" == cmd) {
+                        qDebug() << "Device" << list_index+1 << "replied to device status query";
+                        
+                        std::stringstream ss;
+                        ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+                        ss << "<Response>\r\n";
+                        ss << "<CmdType>DeviceStatus</CmdType>\r\n";
+                        ss << "<SN>" << sn_node.child_value() << "</SN>\r\n";
+                        ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
+                        ss << "<Online>ONLINE</Online>\r\n";
+                        ss << "<Status>OK</Status>\r\n";
+                        ss << "<DeviceTime>" << get_current_time() << "</DeviceTime>\r\n";
+                        ss << "<Alarmstatus>0</Alarmstatus>\r\n";
+                        ss << "<Language>zh-CN</Language>\r\n";
+                        ss << "<DeviceChannel>" << 1 << "</DeviceChannel>\r\n";
+                        ss << "</Response>\r\n";
+                        
+                        osip_message_t* request = create_request();
+                        if (request != NULL) {
+                            osip_message_set_content_type(request, "Application/MANSCDP+xml");
+                            osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
+                            send_request(request);
+                            qDebug() << "Device" << list_index+1 << "sent device status reply successfully";
+                        } else {
+                            qDebug() << "Device" << list_index+1 << "failed to create device status reply";
+                        }
+                    }
+                    else if ("DeviceControl" == cmd) {
+                        qDebug() << "Device" << list_index+1 << "received device control command";
+                        
+                        pugi::xml_node control_node = root_node.child("PTZCmd");
+                        if (control_node) {
+                            std::string ptz_cmd = control_node.child_value();
+                            qDebug() << "Device" << list_index+1 << "PTZ command:" << ptz_cmd.c_str();
+                            
+                            std::stringstream ss;
+                            ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+                            ss << "<Response>\r\n";
+                            ss << "<CmdType>DeviceControl</CmdType>\r\n";
+                            ss << "<SN>" << sn_node.child_value() << "</SN>\r\n";
+                            ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
+                            ss << "<Result>OK</Result>\r\n";
+                            ss << "</Response>\r\n";
+                            
+                            osip_message_t* request = create_request();
+                            if (request != NULL) {
+                                osip_message_set_content_type(request, "Application/MANSCDP+xml");
+                                osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
+                                send_request(request);
+                                qDebug() << "Device" << list_index+1 << "sent device control reply successfully";
+                            } else {
+                                qDebug() << "Device" << list_index+1 << "failed to create device control reply";
+                            }
+                        }
+                    }
+                    else if ("PresetQuery" == cmd) {
+                        qDebug() << "Device" << list_index+1 << "replied to preset query";
+                        
+                        std::stringstream ss;
+                        ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+                        ss << "<Response>\r\n";
+                        ss << "<CmdType>PresetQuery</CmdType>\r\n";
+                        ss << "<SN>" << sn_node.child_value() << "</SN>\r\n";
+                        ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
+                        ss << "<Num>1</Num>\r\n";
+                        ss << "<PresetList>\r\n";
+                        ss << "<Item>\r\n";
+                        ss << "<PresetID>1</PresetID>\r\n";
+                        ss << "<PresetName>Preset1</PresetName>\r\n";
+                        ss << "</Item>\r\n";
+                        ss << "</PresetList>\r\n";
+                        ss << "</Response>\r\n";
+                        
+                        osip_message_t* request = create_request();
+                        if (request != NULL) {
+                            osip_message_set_content_type(request, "Application/MANSCDP+xml");
+                            osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
+                            send_request(request);
+                            qDebug() << "Device" << list_index+1 << "sent preset query reply successfully";
+                        } else {
+                            qDebug() << "Device" << list_index+1 << "failed to create preset query reply";
+                        }
+                    }
                     else if ("RecordInfo" == cmd) {
-                        //processRecordInfo(root_note);
                         qDebug() << "Device" << list_index+1 << "received recording query request, not processing";
                     }
                 }
@@ -486,33 +611,18 @@ void Device::process_request() {
                 callback(list_index, Message{ STATUS_TYPE, "Register failed, retry..." });
             }
             
-            // Try sending registration again
-            char from_uri[128] = { 0 };
-            char proxy_uri[128] = { 0 };
-            char contact[128] = { 0 };
-            
-            sprintf(from_uri, "sip:%s@%s:%d", deviceId, local_ip, local_port);
-            sprintf(contact, "sip:%s@%s:%d", deviceId, local_ip, local_port);
-            sprintf(proxy_uri, "sip:%s@%s:%d", server_sip_id, server_ip, server_port);
-            
-            qDebug() << "Device" << list_index+1 << "resending registration request: From:" << from_uri << "To:" << proxy_uri << "Contact:" << contact;
-                     
-            eXosip_lock(sip_context);
-
-            // Ensure adding authentication info
-            eXosip_clear_authentication_info(sip_context);
-            eXosip_add_authentication_info(sip_context, deviceId, deviceId, password, "MD5", NULL);
-            
-            osip_message_t * register_message = NULL;
-            int register_id = eXosip_register_build_initial_register(sip_context, from_uri, proxy_uri, contact, 3600, &register_message);
-            if (register_message == NULL) {
-                qDebug() << "Device" << list_index+1 << "failed to create registration message";
+            register_success = false;
+            if (evt->response == NULL) {
                 return;
             }
-            
-            int result = eXosip_register_send_register(sip_context, register_id, register_message);
-            eXosip_unlock(sip_context);
-            qDebug() << "Device" << list_index+1 << "resending registration result:" << result;
+            if (401 == evt->response->status_code) {
+                if (callback != nullptr) {
+                    callback(list_index, Message{ STATUS_TYPE, "Registration 401" });
+                }
+                osip_www_authenticate_t* www_authenticate_header;
+                osip_message_get_www_authenticate(evt->response, 0, &www_authenticate_header);
+                eXosip_add_authentication_info(sip_context, deviceId, deviceId, password, "MD5", www_authenticate_header->realm);
+            }
             break;
         }
 
@@ -659,4 +769,12 @@ Device::~Device() {
     if (callback != nullptr) {
         callback(list_index, Message{ STATUS_TYPE, "Released device" });
     }
-} 
+}
+
+std::string Device::get_current_time() {
+    auto now = std::chrono::system_clock::now();
+    auto now_c = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+}

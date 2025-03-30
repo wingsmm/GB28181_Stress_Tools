@@ -15,16 +15,16 @@ public:
     DeviceThread(QObject *parent = nullptr);
     ~DeviceThread();
 
-    void setParameters(const QString &serverSipId, const QString &serverIp, 
-                      int serverPort, const QString &password, int deviceCount);
+    void start(const QString& serverSipId, const QString& serverIp, int serverPort, 
+               const QString& password, int deviceCount);
     void stop();
 
 protected:
     void run() override;
 
 signals:
-    void deviceStatus(int index, Message msg);
     void deviceCreated(std::shared_ptr<Device> device);
+    void deviceStatusUpdated(int index, Message msg);
 
 private:
     QString m_serverSipId;

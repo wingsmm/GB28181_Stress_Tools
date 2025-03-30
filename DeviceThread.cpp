@@ -15,8 +15,8 @@ DeviceThread::~DeviceThread()
     stop();
 }
 
-void DeviceThread::setParameters(const QString &serverSipId, const QString &serverIp, 
-                                int serverPort, const QString &password, int deviceCount)
+void DeviceThread::start(const QString& serverSipId, const QString& serverIp, int serverPort, 
+                        const QString& password, int deviceCount)
 {
     QMutexLocker locker(&m_mutex);
     m_serverSipId = serverSipId;
@@ -24,24 +24,26 @@ void DeviceThread::setParameters(const QString &serverSipId, const QString &serv
     m_serverPort = serverPort;
     m_password = password;
     m_deviceCount = deviceCount;
+    m_isRunning = true;
+    QThread::start();
 }
 
 void DeviceThread::stop()
 {
     QMutexLocker locker(&m_mutex);
     m_isRunning = false;
+    wait();
 }
 
 void DeviceThread::run()
 {
     m_mutex.lock();
-    m_isRunning = true;
-    
     std::string serverSipId = m_serverSipId.toStdString();
     std::string serverIp = m_serverIp.toStdString();
     int serverPort = m_serverPort;
     std::string password = m_password.toStdString();
     int deviceCount = m_deviceCount;
+    m_mutex.unlock();
     
     qDebug() << "DeviceThread started, parameters:";
     qDebug() << "  ServerSipId:" << m_serverSipId;
@@ -49,8 +51,6 @@ void DeviceThread::run()
     qDebug() << "  ServerPort:" << serverPort;
     qDebug() << "  Password:" << m_password;
     qDebug() << "  DeviceCount:" << deviceCount;
-    
-    m_mutex.unlock();
     
     // Extract video file from resources to a temporary directory
     QString videoPath;
@@ -120,7 +120,7 @@ void DeviceThread::run()
         device->list_index = i;
         device->set_callback([this, i](int /*index*/, Message msg) {
             qDebug() << "Device" << i+1 << "status:" << msg.content;
-            emit deviceStatus(i, msg);
+            emit deviceStatusUpdated(i, msg);
         });
         
         // Notify main thread that device has been created

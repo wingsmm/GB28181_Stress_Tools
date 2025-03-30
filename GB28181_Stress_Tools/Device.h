@@ -95,6 +95,9 @@ public:
 	void set_callback(std::function<void(int index, Message msg)> callback);
 
 	~Device();
+
+	std::string get_current_time();
+
 private:
 
 	void process_request();
