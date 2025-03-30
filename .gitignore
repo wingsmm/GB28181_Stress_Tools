@@ -6,3 +6,17 @@
 *.iobj
 *.ipdb
 *.pdb
+
+# Qt相关
+/build*/
+*.pro.user*
+*.qmake.stash
+*.o
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+Makefile*
+.qmake.cache
+/debug/
+/release/
+/.qtc_clangd/

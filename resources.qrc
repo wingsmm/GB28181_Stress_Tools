@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file alias="video.h264">GB28181_Stress_Tools/bigbuckbunnynoB_480x272.h264</file>
+        <file alias="app.ico">GB28181_Stress_Tools/res/GB28181_Stress_Tools.ico</file>
+    </qresource>
+</RCC> 
