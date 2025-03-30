@@ -58,7 +58,7 @@ void MainWindow::setupUi()
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
     // Configuration area
-    QGroupBox *configGroup = new QGroupBox("Configuration", centralWidget);
+    QGroupBox *configGroup = new QGroupBox("配置", centralWidget);
     QFormLayout *configLayout = new QFormLayout(configGroup);
 
     m_serverSipIdEdit = new QLineEdit(configGroup);
@@ -72,15 +72,15 @@ void MainWindow::setupUi()
     m_deviceCountSpin->setRange(1, 10000);
     m_deviceCountSpin->setValue(1);
 
-    configLayout->addRow("Server SIP ID:", m_serverSipIdEdit);
-    configLayout->addRow("Server IP:", m_serverIpEdit);
-    configLayout->addRow("Server Port:", m_serverPortSpin);
-    configLayout->addRow("Password:", m_passwordEdit);
-    configLayout->addRow("Device Count:", m_deviceCountSpin);
+    configLayout->addRow("服务器SIP ID:", m_serverSipIdEdit);
+    configLayout->addRow("服务器IP:", m_serverIpEdit);
+    configLayout->addRow("服务器端口:", m_serverPortSpin);
+    configLayout->addRow("密码:", m_passwordEdit);
+    configLayout->addRow("设备数量:", m_deviceCountSpin);
 
     // Button area
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    m_startButton = new QPushButton("Start", centralWidget);
+    m_startButton = new QPushButton("开始", centralWidget);
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_startButton);
 
@@ -88,8 +88,8 @@ void MainWindow::setupUi()
     m_deviceTable = new QTableWidget(centralWidget);
     m_deviceTable->setColumnCount(7);
     m_deviceTable->setHorizontalHeaderLabels(
-        QStringList() << "Index" << "DeviceId" << "VideoChannelId" << "Local Port" 
-                     << "Target Port" << "Protocol" << "Status");
+        QStringList() << "序号" << "设备ID" << "视频通道ID" << "本地端口" 
+                     << "目标端口" << "协议" << "状态");
     m_deviceTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_deviceTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
@@ -100,7 +100,7 @@ void MainWindow::setupUi()
 
     // Window settings
     resize(800, 600);
-    setWindowTitle("GB28181 Stress Tools (Qt)");
+    setWindowTitle("视频平台");
 }
 
 void MainWindow::setupConnections()
@@ -113,51 +113,22 @@ void MainWindow::setupConnections()
 // Get config file path
 QString MainWindow::getConfigFilePath()
 {
-    // Define source directory config file path (highest priority)
-    QString sourcePath = "./config/config.xml";
-    
-    // If source directory config exists, use it
-    if (QFile::exists(sourcePath)) {
-        qDebug() << "Using source directory config file:" << sourcePath;
-        return sourcePath;
-    }
-    
-    // Other possible locations
-    QStringList possiblePaths = {
-        "./config.xml",                          // Current directory
-        "config/config.xml",                     // Config subdirectory
-        QCoreApplication::applicationDirPath() + "/config.xml"  // Application directory
-    };
-    
-    // Try to find existing config file
-    for (const QString &path : possiblePaths) {
-        if (QFile::exists(path)) {
-            qDebug() << "Found config file:" << path;
-            return path;
-        }
-    }
-    
-    // If not found, use source directory
-    qDebug() << "Config file not found, using source directory:" << sourcePath;
-    return sourcePath;
+    // 使用应用程序目录下的配置文件
+    QString configPath = QCoreApplication::applicationDirPath() + "/config.xml";
+    qDebug() << "使用配置文件:" << configPath;
+    return configPath;
 }
 
 void MainWindow::loadConfig()
 {
-    // Debug all possible file paths
-    qDebug() << "Checking config file paths:";
-    qDebug() << "  Current directory:" << QDir::currentPath() + "/config.xml" << QFile::exists(QDir::currentPath() + "/config.xml");
-    qDebug() << "  Application directory:" << QCoreApplication::applicationDirPath() + "/config.xml" << QFile::exists(QCoreApplication::applicationDirPath() + "/config.xml");
-    qDebug() << "  Project subdirectory:" << "GB28181_Stress_Tools/config.xml" << QFile::exists("GB28181_Stress_Tools/config.xml");
-    
     QString configPath = getConfigFilePath();
-    qDebug() << "Using config file:" << configPath;
+    qDebug() << "正在加载配置文件:" << configPath;
     
     QFile file(configPath);
     
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open config file:" << configPath << "Error:" << file.errorString();
-        // If config file not found, create default config
+        qDebug() << "无法打开配置文件:" << configPath << "错误:" << file.errorString();
+        // 如果配置文件不存在，创建默认配置
         saveConfig();
         return;
     }
@@ -170,13 +141,13 @@ void MainWindow::loadConfig()
     pugi::xml_parse_result result = doc.load_buffer(data.data(), data.size());
     
     if (!result) {
-        qDebug() << "XML parsing failed:" << result.description();
+        qDebug() << "XML解析失败:" << result.description();
         return;
     }
     
     pugi::xml_node config = doc.child("config");
     if (!config) {
-        qDebug() << "Config node not found";
+        qDebug() << "未找到配置节点";
         return;
     }
     
@@ -187,22 +158,22 @@ void MainWindow::loadConfig()
     QString password = config.child_value("password");
     QString count = config.child_value("count");
     
-    qDebug() << "Parsed config values:";
-    qDebug() << "  Server ID:" << serverSipId;
-    qDebug() << "  Server IP:" << serverIp;
-    qDebug() << "  Server Port:" << serverPort;
-    qDebug() << "  Password:" << password;
-    qDebug() << "  Device Count:" << count;
+    qDebug() << "解析的配置值:";
+    qDebug() << "  服务器ID:" << serverSipId;
+    qDebug() << "  服务器IP:" << serverIp;
+    qDebug() << "  服务器端口:" << serverPort;
+    qDebug() << "  密码:" << password;
+    qDebug() << "  设备数量:" << count;
     
     // Set control values
     if (!serverSipId.isEmpty()) {
         m_serverSipIdEdit->setText(serverSipId);
-        qDebug() << "Set server ID:" << serverSipId;
+        qDebug() << "设置服务器ID:" << serverSipId;
     }
     
     if (!serverIp.isEmpty()) {
         m_serverIpEdit->setText(serverIp);
-        qDebug() << "Set server IP:" << serverIp;
+        qDebug() << "设置服务器IP:" << serverIp;
     }
     
     if (!serverPort.isEmpty()) {
@@ -210,13 +181,13 @@ void MainWindow::loadConfig()
         int port = serverPort.toInt(&ok);
         if (ok) {
             m_serverPortSpin->setValue(port);
-            qDebug() << "Set server port:" << port;
+            qDebug() << "设置服务器端口:" << port;
         }
     }
     
     if (!password.isEmpty()) {
         m_passwordEdit->setText(password);
-        qDebug() << "Set password:" << password;
+        qDebug() << "设置密码:" << password;
     }
     
     if (!count.isEmpty()) {
@@ -224,11 +195,11 @@ void MainWindow::loadConfig()
         int deviceCount = count.toInt(&ok);
         if (ok) {
             m_deviceCountSpin->setValue(deviceCount);
-            qDebug() << "Set device count:" << deviceCount;
+            qDebug() << "设置设备数量:" << deviceCount;
         }
     }
     
-    qDebug() << "Config loaded from:" << configPath;
+    qDebug() << "已从以下位置加载配置:" << configPath;
 }
 
 void MainWindow::saveConfig()
@@ -244,12 +215,12 @@ void MainWindow::saveConfig()
     config.append_child("count").text().set(m_deviceCountSpin->value());
     
     // Get config file path
-    QString configPath = "./config/config.xml";
+    QString configPath = getConfigFilePath();
     
     // Save config
     bool mainSaveResult = saveXmlToFile(doc, configPath);
     
-    qDebug() << "Config saved";
+    qDebug() << "配置已保存到:" << configPath;
 }
 
 bool MainWindow::saveXmlToFile(pugi::xml_document& doc, const QString& filePath)
@@ -262,12 +233,12 @@ bool MainWindow::saveXmlToFile(pugi::xml_document& doc, const QString& filePath)
     bool saveResult = doc.save_file(filePath.toStdString().c_str(), "  ");
     
     if (saveResult) {
-        qDebug() << "Config saved to:" << filePath;
+        qDebug() << "配置已保存到:" << filePath;
         return true;
     } 
     
     // If direct save failed, try Qt way
-    qDebug() << "Direct save failed, trying Qt way:" << filePath;
+    qDebug() << "直接保存失败，尝试Qt方式:" << filePath;
     
     std::ostringstream oss;
     doc.save(oss, "  ");
@@ -278,10 +249,10 @@ bool MainWindow::saveXmlToFile(pugi::xml_document& doc, const QString& filePath)
         QTextStream stream(&file);
         stream << xmlContent;
         file.close();
-        qDebug() << "Using Qt way save succeeded:" << filePath;
+        qDebug() << "使用Qt方式保存成功:" << filePath;
         return true;
     } else {
-        qDebug() << "All save ways failed:" << filePath << file.errorString();
+        qDebug() << "所有保存方式都失败:" << filePath << file.errorString();
         return false;
     }
 }
@@ -298,34 +269,34 @@ void MainWindow::onStartButtonClicked()
         
         // Start devices
         startDevices();
-        m_startButton->setText("Stop");
+        m_startButton->setText("停止");
         m_isStarted = true;
         
-        qDebug() << "Devices started: " << m_deviceCountSpin->value();
+        qDebug() << "已启动设备数量: " << m_deviceCountSpin->value();
     } else {
         // If already started, perform stop operations
         stopDevices();
-        m_startButton->setText("Start");
+        m_startButton->setText("开始");
         m_isStarted = false;
         
-        qDebug() << "Devices stopped";
+        qDebug() << "设备已停止";
     }
 }
 
 bool MainWindow::checkParams()
 {
     if (m_serverSipIdEdit->text().length() < 10) {
-        QMessageBox::warning(this, "Warning", "Server SIP ID must be at least 10 characters");
+        QMessageBox::warning(this, "警告", "服务器SIP ID至少需要10个字符");
         return false;
     }
 
     if (m_serverIpEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Warning", "Please enter Server IP");
+        QMessageBox::warning(this, "警告", "请输入服务器IP");
         return false;
     }
 
     if (m_passwordEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Warning", "Password cannot be empty");
+        QMessageBox::warning(this, "警告", "密码不能为空");
         return false;
     }
 

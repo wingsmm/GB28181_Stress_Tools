@@ -15,7 +15,7 @@ extern "C" {
 #include <memory>
 #include <condition_variable>
 #include <mutex>
-#include <QtCore/QDebug>
+#include <iostream>
 
 //----exosip----//
 
@@ -33,13 +33,13 @@ extern "C" {
 // 从qt_adapters.h移植过来的工具函数
 inline int get_port() {
     static int port = 40000;  // 从40000开始，与MFC版本保持一致
-    qDebug() << "Getting port:" << port;
+    std::cout << "Getting port:" << port << std::endl;
     return port++;
 }
 
 inline int get_sn() {
     static int sn = 1;
-    qDebug() << "Getting SN:" << sn;
+    std::cout << "Getting SN:" << sn << std::endl;
     return sn++;
 }
 

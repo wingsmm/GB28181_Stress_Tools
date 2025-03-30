@@ -30,7 +30,7 @@ void DeviceThread::start(const QString& serverSipId, const QString& serverIp, in
 
 void DeviceThread::stop()
 {
-    qDebug() << "Stopping device thread...";
+    qDebug() << "正在停止设备线程...";
     
     // First set the running flag to false
     m_mutex.lock();
@@ -41,10 +41,10 @@ void DeviceThread::stop()
     m_mutex.unlock();
     
     // Properly unregister each device using the public API
-    qDebug() << "Unregistering" << devicesCopy.size() << "devices...";
+    qDebug() << "正在注销" << devicesCopy.size() << "个设备...";
     for (auto& device : devicesCopy) {
         if (device) {
-            qDebug() << "Stopping device" << device->list_index + 1;
+            qDebug() << "正在停止设备" << device->list_index + 1;
             
             // Stop device using the public methods
             device->stopRunning();
@@ -52,19 +52,19 @@ void DeviceThread::stop()
             // If the device is pushing video, stop it
             if (device->isPushing()) {
                 device->stopPushingStream();
-                qDebug() << "Stopping video push for device" << device->list_index + 1;
+                qDebug() << "正在停止设备" << device->list_index + 1 << "的视频推送";
             }
             
             // Stop heartbeat
             if (device->isHeartbeatRunning()) {
                 device->stopHeartbeat();
-                qDebug() << "Stopping heartbeat for device" << device->list_index + 1;
+                qDebug() << "正在停止设备" << device->list_index + 1 << "的心跳";
             }
             
             // Stop mobile position updates
             if (device->isMobilePositionRunning()) {
                 device->stopMobilePosition();
-                qDebug() << "Stopping position updates for device" << device->list_index + 1;
+                qDebug() << "正在停止设备" << device->list_index + 1 << "的位置更新";
             }
         }
     }
@@ -77,12 +77,12 @@ void DeviceThread::stop()
     m_devices.clear();
     m_mutex.unlock();
     
-    qDebug() << "All devices unregistered, waiting for thread to finish...";
+    qDebug() << "所有设备已注销，等待线程结束...";
     
     // Wait for thread to complete
     wait();
     
-    qDebug() << "Device thread stopped successfully";
+    qDebug() << "设备线程已成功停止";
 }
 
 void DeviceThread::run()
@@ -95,12 +95,12 @@ void DeviceThread::run()
     int deviceCount = m_deviceCount;
     m_mutex.unlock();
     
-    qDebug() << "DeviceThread started, parameters:";
-    qDebug() << "  ServerSipId:" << m_serverSipId;
-    qDebug() << "  ServerIp:" << m_serverIp;
-    qDebug() << "  ServerPort:" << serverPort;
-    qDebug() << "  Password:" << m_password;
-    qDebug() << "  DeviceCount:" << deviceCount;
+    qDebug() << "设备线程已启动，参数如下：";
+    qDebug() << "  服务器SIP ID:" << m_serverSipId;
+    qDebug() << "  服务器IP:" << m_serverIp;
+    qDebug() << "  服务器端口:" << serverPort;
+    qDebug() << "  密码:" << m_password;
+    qDebug() << "  设备数量:" << deviceCount;
     
     // Extract video file from resources to a temporary directory
     QString videoPath;
@@ -118,28 +118,28 @@ void DeviceThread::run()
                 if (outFile.open(QIODevice::WriteOnly)) {
                     outFile.write(resourceFile.readAll());
                     outFile.close();
-                    qDebug() << "Video file copied to:" << videoPath;
+                    qDebug() << "视频文件已复制到:" << videoPath;
                 }
                 resourceFile.close();
             }
         }
     } else {
         // Fallback to original path
-        videoPath = "GB28181_Stress_Tools/bigbuckbunnynoB_480x272.h264";
-        qDebug() << "Using default video file path:" << videoPath;
+        videoPath = "resources/video.h264";
+        qDebug() << "使用默认视频文件路径:" << videoPath;
     }
     
     // Load H264 file
-    qDebug() << "Loading H264 file:" << videoPath;
+    qDebug() << "正在加载H264文件:" << videoPath;
     int loadResult = load(videoPath.toStdString().c_str());
     if (loadResult != 0) {
-        qDebug() << "H264 file loading failed:" << loadResult;
+        qDebug() << "H264文件加载失败:" << loadResult;
     } else {
-        qDebug() << "H264 file loaded successfully";
+        qDebug() << "H264文件加载成功";
     }
     
     extern std::vector<Nalu*> nalu_vector;
-    qDebug() << "NALU vector size:" << nalu_vector.size();
+    qDebug() << "NALU向量大小:" << nalu_vector.size();
     NaluProvider naluProvider(&nalu_vector);
     
     // Create devices, assign ports, and start SIP clients
@@ -153,7 +153,7 @@ void DeviceThread::run()
         
         int localPort = 5060 + i + 1;
         
-        qDebug() << "Creating device" << i+1 << ":" << deviceId << "," << channelId << "," << "Local port:" << localPort;
+        qDebug() << "正在创建设备" << i+1 << ":" << deviceId << "," << channelId << "," << "本地端口:" << localPort;
         
         // Use smart pointer to manage device object
         std::shared_ptr<Device> device = std::make_shared<Device>(
@@ -169,7 +169,7 @@ void DeviceThread::run()
         // Set device index and callback function
         device->list_index = i;
         device->set_callback([this, i](int /*index*/, Message msg) {
-            qDebug() << "Device" << i+1 << "status:" << msg.content;
+            qDebug() << "设备" << i+1 << "状态:" << msg.content;
             emit deviceStatusUpdated(i, msg);
         });
         
@@ -179,20 +179,20 @@ void DeviceThread::run()
         m_mutex.unlock();
         
         // Notify main thread that device has been created
-        qDebug() << "Sending device created signal:" << i+1;
+        qDebug() << "发送设备创建信号:" << i+1;
         emit deviceCreated(device);
         
         // Start SIP client
-        qDebug() << "Starting device" << i+1 << "SIP client";
+        qDebug() << "正在启动设备" << i+1 << "的SIP客户端";
         device->start_sip_client(localPort);
         
         // Delay to avoid port conflicts from creating too quickly
-        qDebug() << "Delaying 500ms...";
+        qDebug() << "等待500毫秒...";
         msleep(500);
     }
     
     // Wait until thread is requested to stop
-    qDebug() << "All devices created, waiting for stop signal...";
+    qDebug() << "所有设备已创建，等待停止信号...";
     m_mutex.lock();
     while (m_isRunning) {
         m_mutex.unlock();
@@ -200,5 +200,5 @@ void DeviceThread::run()
         m_mutex.lock();
     }
     m_mutex.unlock();
-    qDebug() << "DeviceThread ended";
+    qDebug() << "设备线程已结束";
 } 

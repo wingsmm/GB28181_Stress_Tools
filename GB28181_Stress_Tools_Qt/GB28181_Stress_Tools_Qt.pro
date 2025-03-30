@@ -1,3 +1,7 @@
+# 设置UTF-8编码支持
+CODECFORTR = UTF-8
+CODECFORSRC = UTF-8
+
 QT += core gui widgets network
 
 CONFIG += c++11
@@ -5,12 +9,15 @@ CONFIG += c++11
 TARGET = GB28181_Stress_Tools_Qt
 TEMPLATE = app
 
+# 禁用编码警告 (4819是关于中文编码的警告)
+win32: QMAKE_CXXFLAGS += -wd4819 /utf-8
+
 # 定义
 DEFINES += QT_DEPRECATED_WARNINGS _AFXDLL USE_QT_VERSION _CRT_SECURE_NO_WARNINGS
 
 # 包含所有源文件
 SOURCES += \
-    src/main_qt.cpp \
+    src/main.cpp \
     src/ui/MainWindow.cpp \
     src/core/DeviceThread.cpp \
     src/common/Device.cpp \
@@ -59,7 +66,7 @@ INCLUDEPATH += \
 
 # 库文件路径设置
 LIB_PATH = $$PWD/../lib
-win32:LIB_PATH_WIN = D:/Developer/git/GB28181_Stress_Tools/lib
+win32:LIB_PATH_WIN = $$PWD/../lib
 
 # 添加库文件路径
 LIBS += -L$$LIB_PATH
@@ -108,8 +115,11 @@ exists($$CONFIG_FILE) {
         CONFIG_DEST_RELEASE_WIN = $${CONFIG_DEST_RELEASE}
         CONFIG_DEST_RELEASE_WIN ~= s,/,\\,g
         
-        QMAKE_POST_LINK += $$quote(cmd /c copy /y $${CONFIG_FILE_WIN} $${CONFIG_DEST_WIN}$$escape_expand(\n\t))
-        QMAKE_POST_LINK += $$quote(cmd /c copy /y $${CONFIG_FILE_WIN} $${CONFIG_DEST_RELEASE_WIN}$$escape_expand(\n\t))
+        # 复制到debug目录
+        QMAKE_POST_LINK += $$quote(cmd /c copy /y $${CONFIG_FILE_WIN} $${CONFIG_DEST_WIN}\\config.xml$$escape_expand(\n\t))
+        
+        # 复制到release目录
+        QMAKE_POST_LINK += $$quote(cmd /c copy /y $${CONFIG_FILE_WIN} $${CONFIG_DEST_RELEASE_WIN}\\config.xml$$escape_expand(\n\t))
     }
 }
 

@@ -8,14 +8,13 @@
 #include <cstring>
 #include <functional>
 #include "pugixml.hpp"
-#include <QtCore/QDebug>
 #include "gb28181_header_maker.h"
 #include <iomanip>
 #include <ctime>
 #include <QTimer>
 
 void logSipError(const char* operation, int errorCode, int index) {
-    qDebug() << "SIP Error: Device" << index+1 << operation << "Error code:" << errorCode;
+    std::cout << "SIP Error: Device" << index+1 << operation << "Error code:" << errorCode << std::endl;
 }
 
 void Device::mobile_position_task() {
@@ -85,28 +84,28 @@ void Device::create_mobile_position_task() {
 }
 
 void Device::process_call(eXosip_event_t * evt) {
-    qDebug() << "Device" << list_index+1 << "Processing INVITE request";
+    std::cout << "Device" << list_index+1 << "Processing INVITE request" << std::endl;
     // 解析sdp
     osip_body_t *sdp_body = NULL;
     osip_message_get_body(evt->request, 0, &sdp_body);
     if (sdp_body != NULL) {
-        qDebug() << "Device" << list_index+1 << "Received SDP body:" << sdp_body->body;
+        std::cout << "Device" << list_index+1 << "Received SDP body:" << sdp_body->body << std::endl;
     }
     else {
-        qDebug() << "Device" << list_index+1 << "SDP body is empty";
+        std::cout << "Device" << list_index+1 << "SDP body is empty" << std::endl;
         return;
     }
     sdp_message_t * sdp = NULL;
 
     if (OSIP_SUCCESS != sdp_message_init(&sdp)) {
-        qDebug() << "Device" << list_index+1 << "SDP message initialization failed";
+        std::cout << "Device" << list_index+1 << "SDP message initialization failed" << std::endl;
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "sdp_message_init failed" });
         }
         return;
     }
     if (OSIP_SUCCESS != sdp_message_parse(sdp, sdp_body->body)) {
-        qDebug() << "Device" << list_index+1 << "SDP message parsing failed";
+        std::cout << "Device" << list_index+1 << "SDP message parsing failed" << std::endl;
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "sdp_message_parse failed" });
         }
@@ -117,8 +116,7 @@ void Device::process_call(eXosip_event_t * evt) {
     target_ip = connect->c_addr;
     target_port = atoi(media->m_port);
     char * protocol = media->m_proto;
-    is_tcp = strstr(protocol, "TCP");
-    qDebug() << "Device" << list_index+1 << "Target info - IP:" << target_ip << "Port:" << target_port << "Protocol:" << (is_tcp ? "TCP" : "UDP");
+    std::cout << "Device" << list_index+1 << "Target info - IP:" << target_ip << "Port:" << target_port << "Protocol:" << (is_tcp ? "TCP" : "UDP") << std::endl;
     
     if (callback != nullptr) {
         char port[5];
@@ -130,7 +128,7 @@ void Device::process_call(eXosip_event_t * evt) {
     listen_port = get_port();
     char port[10];
     snprintf(port, 10, "%d", listen_port);
-    qDebug() << "Device" << list_index+1 << "Local listening port:" << listen_port;
+    std::cout << "Device" << list_index+1 << "Local listening port:" << listen_port << std::endl;
     
     if (callback != nullptr) {
         callback(list_index, Message{ PULL_STREAM_PORT_TYPE, port });
@@ -193,13 +191,13 @@ void Device::heartbeat_task() {
 }
 
 void Device::push_task() {
-    qDebug() << "Device" << list_index+1 << "Starting push stream task";
+    std::cout << "Device" << list_index+1 << "Starting push stream task" << std::endl;
     udp_client = new UDPClient(is_tcp);
 
     int status = is_tcp ? udp_client->bind(local_ip, listen_port, target_ip, target_port) : udp_client->bind(local_ip, listen_port);
 
     if (0 != status) {
-        qDebug() << "Device" << list_index+1 << "Client port binding failed";
+        std::cout << "Device" << list_index+1 << "Client port binding failed" << std::endl;
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "Failed to bind local port or connect to remote" });
         }
@@ -209,8 +207,8 @@ void Device::push_task() {
         }
         return;
     }
-    qDebug() << "Device" << list_index+1 << "Client binding successful - Local IP:" << local_ip << "Port:" << listen_port 
-             << "Target IP:" << target_ip << "Port:" << target_port;
+    std::cout << "Device" << list_index+1 << "Client binding successful - Local IP:" << local_ip << "Port:" << listen_port 
+             << "Target IP:" << target_ip << "Port:" << target_port << std::endl;
 
     char ps_header[PS_HDR_LEN];
     char ps_system_header[SYS_HDR_LEN];
@@ -233,7 +231,7 @@ void Device::push_task() {
 
     extern std::vector<Nalu*> nalu_vector;
     size_t size = nalu_vector.size();
-    qDebug() << "Device" << list_index+1 << "Total NALU count:" << size;
+    std::cout << "Device" << list_index+1 << "Total NALU count:" << size << std::endl;
 
     while (is_pushing) {
         for (int i = 0; i < size; i++) {
@@ -243,12 +241,7 @@ void Device::push_task() {
             Nalu *nalu = nalu_vector.at(i);
             
             // Enhanced NALU logging in MFC format
-            qDebug() << QString("%1| %2| %3| %4| %5|")
-                .arg(i, 5)
-                .arg(pts, 8)
-                .arg("HIGH", 8)
-                .arg(nalu->type == NALU_TYPE_IDR ? "IDR" : "SLICE", 6)
-                .arg(nalu->length, 8);
+            std::cout << std::setw(5) << i << "| " << std::setw(8) << pts << "| " << std::setw(8) << "HIGH" << "| " << std::setw(6) << (nalu->type == NALU_TYPE_IDR ? "IDR" : "SLICE") << "| " << std::setw(8) << nalu->length << std::endl;
 
             NaluType type = nalu->type;
             int length = nalu->length;
@@ -363,12 +356,12 @@ void Device::send_response_ok(eXosip_event_t *evt) {
 }
 
 void Device::process_request() {
-    qDebug() << "Device" << list_index+1 << "starting SIP message processing";
+    std::cout << "Device" << list_index+1 << "starting SIP message processing" << std::endl;
     eXosip_event_t *evt = NULL;
     
     // Add authentication info first
     if (strlen(password) > 0) {
-        qDebug() << "Device" << list_index+1 << "adding authentication info:" << deviceId << "password:" << password;
+        std::cout << "Device" << list_index+1 << "adding authentication info:" << deviceId << "password:" << password << std::endl;
         eXosip_lock(sip_context);
         eXosip_add_authentication_info(sip_context, deviceId, deviceId, password, "MD5", NULL);
         eXosip_unlock(sip_context);
@@ -383,63 +376,63 @@ void Device::process_request() {
             continue;
         }
         
-        qDebug() << "Device" << list_index+1 << "received SIP event type:" << evt->type;
+        std::cout << "Device" << list_index+1 << "received SIP event type:" << evt->type << std::endl;
         
         // Log event details
         if (evt->type == EXOSIP_MESSAGE_NEW && MSG_IS_MESSAGE(evt->request)) {
             osip_body_t *body = NULL;
             osip_message_get_body(evt->request, 0, &body);
             if (body != NULL) {
-                qDebug() << "Device" << list_index+1 << "received message body:" << body->body;
+                std::cout << "Device" << list_index+1 << "received message body:" << body->body << std::endl;
             }
         }
         
         // Log registration events
         if (evt->type == EXOSIP_REGISTRATION_SUCCESS) {
-            qDebug() << "Device" << list_index+1 << "Registration successful";
+            std::cout << "Device" << list_index+1 << "Registration successful" << std::endl;
         }
         
         // Log call events
         if (evt->type == EXOSIP_CALL_INVITE) {
-            qDebug() << "Device" << list_index+1 << "Received call invite";
+            std::cout << "Device" << list_index+1 << "Received call invite" << std::endl;
         }
         
         switch (evt->type) {
         case EXOSIP_IN_SUBSCRIPTION_NEW: {
-            qDebug() << "Device" << list_index+1 << "received subscription request";
+            std::cout << "Device" << list_index+1 << "received subscription request" << std::endl;
             ExosipCtxLock lolck(sip_context);
             osip_message_t * answer = NULL;
             if (OSIP_SUCCESS != eXosip_insubscription_build_answer(sip_context, evt->tid, 200, &answer)) {
-                qDebug() << "Device" << list_index+1 << "failed to create subscription reply";
+                std::cout << "Device" << list_index+1 << "failed to create subscription reply" << std::endl;
                 break;
             }
             eXosip_insubscription_send_answer(sip_context, evt->tid, 200, answer);
             mobile_postition_dialog_id = evt->did;
             create_mobile_position_task();
-            qDebug() << "Device" << list_index+1 << "replied to subscription request and created position task";
+            std::cout << "Device" << list_index+1 << "replied to subscription request and created position task" << std::endl;
             break;
         }
 
         case EXOSIP_MESSAGE_NEW: {
-            qDebug() << "Device" << list_index+1 << "received message request";
+            std::cout << "Device" << list_index+1 << "received message request" << std::endl;
             if (MSG_IS_MESSAGE(evt->request)) {
                 osip_body_t *body = NULL;
                 osip_message_get_body(evt->request, 0, &body);
                 if (body != NULL) {
-                    qDebug() << "Device" << list_index+1 << "message content:" << body->body;
+                    std::cout << "Device" << list_index+1 << "message content:" << body->body << std::endl;
                 }
 
                 send_response_ok(evt);
 
                 pugi::xml_document document;
                 if (!document.load_buffer(body->body, strlen(body->body))) {
-                    qDebug() << "Device" << list_index+1 << "failed to parse XML";
+                    std::cout << "Device" << list_index+1 << "failed to parse XML" << std::endl;
                     break;
                 }
                 pugi::xml_node root_node = document.first_child();
 
                 if (!root_node) {
-                    qDebug() << "Device" << list_index+1 << "failed to get root node";
+                    std::cout << "Device" << list_index+1 << "failed to get root node" << std::endl;
                     break;
                 }
                 std::string root_name = root_node.name();
@@ -447,17 +440,17 @@ void Device::process_request() {
                     pugi::xml_node cmd_node = root_node.child("CmdType");
 
                     if (!cmd_node) {
-                        qDebug() << "Device" << list_index+1 << "failed to get CmdType node";
+                        std::cout << "Device" << list_index+1 << "failed to get CmdType node" << std::endl;
                         break;
                     }
 
                     pugi::xml_node sn_node = root_node.child("SN");
                     std::string cmd = cmd_node.child_value();
                     
-                    qDebug() << "Device" << list_index+1 << "processing command:" << cmd.c_str();
+                    std::cout << "Device" << list_index+1 << "processing command:" << cmd.c_str() << std::endl;
                     
                     if ("Catalog" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "replied to directory query";
+                        std::cout << "Device" << list_index+1 << "replied to directory query" << std::endl;
                         
                         std::stringstream ss;
                         ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
@@ -489,13 +482,13 @@ void Device::process_request() {
                             osip_message_set_content_type(request, "Application/MANSCDP+xml");
                             osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
                             send_request(request);
-                            qDebug() << "Device" << list_index+1 << "sent directory reply successfully";
+                            std::cout << "Device" << list_index+1 << "sent directory reply successfully" << std::endl;
                         } else {
-                            qDebug() << "Device" << list_index+1 << "failed to create directory reply";
+                            std::cout << "Device" << list_index+1 << "failed to create directory reply" << std::endl;
                         }
                     }
                     else if ("DeviceInfo" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "replied to device info query";
+                        std::cout << "Device" << list_index+1 << "replied to device info query" << std::endl;
                         
                         std::stringstream ss;
                         ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
@@ -518,13 +511,13 @@ void Device::process_request() {
                             osip_message_set_content_type(request, "Application/MANSCDP+xml");
                             osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
                             send_request(request);
-                            qDebug() << "Device" << list_index+1 << "sent device info reply successfully";
+                            std::cout << "Device" << list_index+1 << "sent device info reply successfully" << std::endl;
                         } else {
-                            qDebug() << "Device" << list_index+1 << "failed to create device info reply";
+                            std::cout << "Device" << list_index+1 << "failed to create device info reply" << std::endl;
                         }
                     }
                     else if ("DeviceStatus" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "replied to device status query";
+                        std::cout << "Device" << list_index+1 << "replied to device status query" << std::endl;
                         
                         std::stringstream ss;
                         ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
@@ -545,18 +538,18 @@ void Device::process_request() {
                             osip_message_set_content_type(request, "Application/MANSCDP+xml");
                             osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
                             send_request(request);
-                            qDebug() << "Device" << list_index+1 << "sent device status reply successfully";
+                            std::cout << "Device" << list_index+1 << "sent device status reply successfully" << std::endl;
                         } else {
-                            qDebug() << "Device" << list_index+1 << "failed to create device status reply";
+                            std::cout << "Device" << list_index+1 << "failed to create device status reply" << std::endl;
                         }
                     }
                     else if ("DeviceControl" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "received device control command";
+                        std::cout << "Device" << list_index+1 << "received device control command" << std::endl;
                         
                         pugi::xml_node control_node = root_node.child("PTZCmd");
                         if (control_node) {
                             std::string ptz_cmd = control_node.child_value();
-                            qDebug() << "Device" << list_index+1 << "PTZ command:" << ptz_cmd.c_str();
+                            std::cout << "Device" << list_index+1 << "PTZ command:" << ptz_cmd.c_str() << std::endl;
                             
                             std::stringstream ss;
                             ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
@@ -572,14 +565,14 @@ void Device::process_request() {
                                 osip_message_set_content_type(request, "Application/MANSCDP+xml");
                                 osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
                                 send_request(request);
-                                qDebug() << "Device" << list_index+1 << "sent device control reply successfully";
+                                std::cout << "Device" << list_index+1 << "sent device control reply successfully" << std::endl;
                             } else {
-                                qDebug() << "Device" << list_index+1 << "failed to create device control reply";
+                                std::cout << "Device" << list_index+1 << "failed to create device control reply" << std::endl;
                             }
                         }
                     }
                     else if ("PresetQuery" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "replied to preset query";
+                        std::cout << "Device" << list_index+1 << "replied to preset query" << std::endl;
                         
                         std::stringstream ss;
                         ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
@@ -601,13 +594,13 @@ void Device::process_request() {
                             osip_message_set_content_type(request, "Application/MANSCDP+xml");
                             osip_message_set_body(request, ss.str().c_str(), strlen(ss.str().c_str()));
                             send_request(request);
-                            qDebug() << "Device" << list_index+1 << "sent preset query reply successfully";
+                            std::cout << "Device" << list_index+1 << "sent preset query reply successfully" << std::endl;
                         } else {
-                            qDebug() << "Device" << list_index+1 << "failed to create preset query reply";
+                            std::cout << "Device" << list_index+1 << "failed to create preset query reply" << std::endl;
                         }
                     }
                     else if ("RecordInfo" == cmd) {
-                        qDebug() << "Device" << list_index+1 << "received recording query request, not processing";
+                        std::cout << "Device" << list_index+1 << "received recording query request, not processing" << std::endl;
                     }
                 }
             }
@@ -615,7 +608,7 @@ void Device::process_request() {
         }
 
         case EXOSIP_REGISTRATION_SUCCESS: {
-            qDebug() << "Device" << list_index+1 << "registered successfully";
+            std::cout << "Device" << list_index+1 << "registered successfully" << std::endl;
             if (callback != nullptr) {
                 callback(list_index, Message{ STATUS_TYPE, "Register success" });
             }
@@ -625,7 +618,7 @@ void Device::process_request() {
         }
 
         case EXOSIP_REGISTRATION_FAILURE: {
-            qDebug() << "Device" << list_index+1 << "registration failed, will retry";
+            std::cout << "Device" << list_index+1 << "registration failed, will retry" << std::endl;
             if (callback != nullptr) {
                 callback(list_index, Message{ STATUS_TYPE, "Register failed, retry..." });
             }
@@ -646,7 +639,7 @@ void Device::process_request() {
         }
 
         case EXOSIP_CALL_INVITE: {
-            qDebug() << "Device" << list_index+1 << "received INVITE request";
+            std::cout << "Device" << list_index+1 << "received INVITE request" << std::endl;
             if (MSG_IS_INVITE(evt->request)) {
                 if (callback != nullptr) {
                     callback(list_index, Message{ STATUS_TYPE, "Received INVITE request" });
@@ -660,13 +653,13 @@ void Device::process_request() {
         }
 
         case EXOSIP_CALL_ACK: {
-            qDebug() << "Device" << list_index+1 << "received ACK request";
+            std::cout << "Device" << list_index+1 << "received ACK request" << std::endl;
             //DO Nothing
             break;
         }
 
         case EXOSIP_CALL_CLOSED: {
-            qDebug() << "Device" << list_index+1 << "call closed";
+            std::cout << "Device" << list_index+1 << "call closed" << std::endl;
             if (callback != nullptr) {
                 callback(list_index, Message{ STATUS_TYPE, "Call closed" });
             }
@@ -675,7 +668,7 @@ void Device::process_request() {
         }
 
         case EXOSIP_CALL_RELEASED: {
-            qDebug() << "Device" << list_index+1 << "call released";
+            std::cout << "Device" << list_index+1 << "call released" << std::endl;
             if (callback != nullptr) {
                 callback(list_index, Message{ STATUS_TYPE, "Call released" });
             }
@@ -683,23 +676,23 @@ void Device::process_request() {
         }
 
         default:
-            qDebug() << "Device" << list_index+1 << "received other event type:" << evt->type;
+            std::cout << "Device" << list_index+1 << "received other event type:" << evt->type << std::endl;
             break;
         }
 
         eXosip_event_free(evt);
     }
     
-    qDebug() << "Device" << list_index+1 << "SIP message processing thread ended";
+    std::cout << "Device" << list_index+1 << "SIP message processing thread ended" << std::endl;
 }
 
 void Device::start_sip_client(int local_port) {
-    qDebug() << "Device" << list_index+1 << "starting SIP client, local port:" << local_port;
+    std::cout << "Device" << list_index+1 << "starting SIP client, local port:" << local_port << std::endl;
     this->local_port = local_port;
     sip_context = eXosip_malloc();
 
     if (OSIP_SUCCESS != eXosip_init(sip_context)) {
-        qDebug() << "Device" << list_index+1 << "SIP initialization failed";
+        std::cout << "Device" << list_index+1 << "SIP initialization failed" << std::endl;
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "exo_sip init failed" });
         }
@@ -707,7 +700,7 @@ void Device::start_sip_client(int local_port) {
     }
 
     if (OSIP_SUCCESS != eXosip_listen_addr(sip_context, IPPROTO_UDP, NULL, local_port, AF_INET, 0)) {
-        qDebug() << "Device" << list_index+1 << "SIP failed to bind port" << local_port;
+        std::cout << "Device" << list_index+1 << "SIP failed to bind port" << local_port << std::endl;
         if (callback != nullptr) {
             callback(list_index, Message{ STATUS_TYPE, "sip bind port failed" });
         }
@@ -717,7 +710,7 @@ void Device::start_sip_client(int local_port) {
     }
     is_running = true;
 
-    qDebug() << "Device" << list_index+1 << "creating SIP message processing thread";
+    std::cout << "Device" << list_index+1 << "creating SIP message processing thread" << std::endl;
     sip_thread = std::make_shared<std::thread>(&Device::process_request, this);
 
     char from_uri[128] = { 0 };
@@ -729,27 +722,27 @@ void Device::start_sip_client(int local_port) {
     sprintf(contact, "sip:%s@%s:%d", deviceId, local_ip, local_port);
     sprintf(proxy_uri, "sip:%s@%s:%d", server_sip_id, server_ip, server_port);
 
-    qDebug() << "Device" << list_index+1 << "preparing registration: From:" << from_uri << "To:" << proxy_uri << "Contact:" << contact << "Local IP:" << local_ip;
+    std::cout << "Device" << list_index+1 << "preparing registration: From:" << from_uri << "To:" << proxy_uri << "Contact:" << contact << "Local IP:" << local_ip << std::endl;
 
     eXosip_clear_authentication_info(sip_context);
     
     // Add authentication info
     if (strlen(password) > 0) {
-        qDebug() << "Device" << list_index+1 << "adding authentication info:" << deviceId << "password:" << password;
+        std::cout << "Device" << list_index+1 << "adding authentication info:" << deviceId << "password:" << password << std::endl;
         eXosip_add_authentication_info(sip_context, deviceId, deviceId, password, "MD5", NULL);
     }
 
     osip_message_t * register_message = NULL;
     int register_id = eXosip_register_build_initial_register(sip_context, from_uri, proxy_uri, contact, 3600, &register_message);
     if (register_message == NULL) {
-        qDebug() << "Device" << list_index+1 << "failed to create registration message, error code:" << register_id;
+        std::cout << "Device" << list_index+1 << "failed to create registration message, error code:" << register_id << std::endl;
         return;
     }
     
     eXosip_lock(sip_context);
     int result = eXosip_register_send_register(sip_context, register_id, register_message);
     eXosip_unlock(sip_context);
-    qDebug() << "Device" << list_index+1 << "registration request result:" << result;
+    std::cout << "Device" << list_index+1 << "registration request result:" << result << std::endl;
     
     if (callback != nullptr) {
         callback(list_index, Message{ STATUS_TYPE, "Sent registration message" });
