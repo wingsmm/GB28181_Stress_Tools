@@ -130,6 +130,10 @@ public:
 	    }
 	}
 	
+	void startMobilePosition() {
+	    create_mobile_position_task();
+	}
+	
 	bool isRunning() const { return is_running; }
 	bool isPushing() const { return is_pushing; }
 	bool isHeartbeatRunning() const { return is_heartbeat_running; }

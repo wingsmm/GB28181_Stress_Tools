@@ -29,3 +29,6 @@ Makefile*
 object_script.*
 bin/
 lib/
+
+# ffmpeg相关
+/tools/ffmpeg-4.2.1-win32-shared/

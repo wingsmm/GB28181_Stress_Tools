@@ -10,12 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* 定义操作相关的枚举类型 */
 typedef enum {
 	NALU_PRIPORITY_DISPOSABLE = 0,
 	NALU_PRIORITY_LOW = 1,
 	NALU_PRIORITY_HIGH = 2,
-	NALU_PRIORITY_HIGHTEST = 3, a
-}NaluPriority;
+	NALU_PRIORITY_HIGHTEST = 3
+} NaluPriority;
 
 typedef struct {
 	int             startcodeprefix_len;        //! 4 for parameter sets and first slice in picture, 3 for everything else (suggest)
@@ -25,7 +26,7 @@ typedef struct {
 	int             nal_reference_idc;          //! NALU_PRIPORITY_xxxx
 	int             nal_unit_type;              //! NALU_TYPE_xxxx
 	char*           buf;                        //! contains the first byte followed by the EBSP
-}NALU_t;
+} NALU_t;
 
 FILE *h264bitstream = NULL;                     //! the bit stream file
 
@@ -126,16 +127,15 @@ int GetAnnexbNALU(NALU_t *nalu) {
 
 	return (pos + rewind);
 }
-int simplest_h264_parser(const char *url,void(*out_nalu)(char * buffer,int size, NaluType type))
+int simplest_h264_parser(const char *url, void(*out_nalu)(char * buffer, int size, NaluType type))
 //int simplest_h264_parser(const char *url)
 {
 	NALU_t *n;
 	int buffersize = 100000;
 
 	//FILE *myout=fopen("output_log.txt","wb+");
-	//C语言中的 stdout 是一个定义在<stdio.h>的宏（macro），它展开到一个 FILE* （“指向 FILE 的指针”）类型的表达式（不一定是常量），这个表达式指向一个与标准输出流（standard output stream）相关连的 FILE 对象。
+	//C语言中的 stdout 是一个定义在<stdio.h>的宏（macro），它展开到一个 FILE* （"指向 FILE 的指针"）类型的表达式（不一定是常量），这个表达式指向一个与标准输出流（standard output stream）相关连的 FILE 对象。
 	FILE *myout = stdout;
-
 
 	h264bitstream = fopen(url, "rb+");
 	if (h264bitstream == NULL) {
@@ -194,7 +194,7 @@ int simplest_h264_parser(const char *url,void(*out_nalu)(char * buffer,int size,
 		fprintf(myout, "%5d| %8d| %7s| %6s| %8d|\n", nal_num, data_offset, idc_str, type_str, n->len);
 
 		if (out_nalu != NULL && n->nal_unit_type != NALU_TYPE_SEI) {
-			out_nalu(n->buf,data_lenth,n->nal_unit_type);
+			out_nalu(n->buf + n->startcodeprefix_len, n->len, n->nal_unit_type);
 		}
 
 		data_offset = data_offset + data_lenth;
@@ -209,6 +209,7 @@ int simplest_h264_parser(const char *url,void(*out_nalu)(char * buffer,int size,
 		}
 		free(n);
 	}
+	fclose(h264bitstream);
 	return 0;
 }
 

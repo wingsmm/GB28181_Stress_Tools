@@ -54,9 +54,17 @@ void UDPClient::send_packet(const char * target_ip, int target_port, const char 
 		sin.sin_family = AF_INET;
 		sin.sin_port = htons(target_port);
 		sin.sin_addr.S_un.S_addr = inet_addr(target_ip);
-		sendto(client, data, data_length, 0, (sockaddr *)&sin, sizeof(sin));
+		int result = sendto(client, data, data_length, 0, (sockaddr *)&sin, sizeof(sin));
+		if (result == SOCKET_ERROR) {
+			int error = WSAGetLastError();
+			std::cout << "UDP发送失败，错误码：" << error << std::endl;
+		}
 	}
 	else {
-		send(client, data, data_length, 0);
+		int result = send(client, data, data_length, 0);
+		if (result == SOCKET_ERROR) {
+			int error = WSAGetLastError();
+			std::cout << "TCP发送失败，错误码：" << error << std::endl;
+		}
 	}
 }

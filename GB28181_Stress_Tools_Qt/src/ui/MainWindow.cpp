@@ -18,6 +18,8 @@
 #include <QFileDialog>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
+#include <QProgressDialog>
+#include "../common/FFmpegLoader.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -97,6 +99,25 @@ void MainWindow::setupUi()
     mainLayout->addWidget(configGroup);
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(m_deviceTable);
+
+    // 创建文件选择按钮和文件路径显示
+    m_fileSelectButton = new QPushButton("选择视频文件", this);
+    m_filePathEdit = new QLineEdit(this);
+    m_filePathEdit->setReadOnly(true);
+    m_filePathEdit->setPlaceholderText("请选择MP4或H264文件");
+    
+    // 添加到布局
+    QHBoxLayout* fileSelectLayout = new QHBoxLayout();
+    fileSelectLayout->addWidget(m_fileSelectButton);
+    fileSelectLayout->addWidget(m_filePathEdit);
+    mainLayout->addLayout(fileSelectLayout);
+    
+    // 连接信号槽
+    connect(m_fileSelectButton, &QPushButton::clicked, this, &MainWindow::onSelectVideoFile);
+    connect(m_filePathEdit, &QLineEdit::textChanged, this, &MainWindow::updateStartButtonState);
+    
+    // 初始化启动按钮为禁用状态
+    m_startButton->setEnabled(false);
 
     // Window settings
     resize(800, 600);
@@ -312,6 +333,7 @@ void MainWindow::startDevices()
     int deviceCount = m_deviceCountSpin->value();
     
     // Start device thread
+    m_deviceThread->setVideoPath(m_selectedFilePath);
     m_deviceThread->start(
         m_serverSipIdEdit->text(),
         m_serverIpEdit->text(),
@@ -368,4 +390,159 @@ void MainWindow::onDeviceStatusUpdated(int index, Message msg)
             break;
         }
     }
+}
+
+// 实现文件选择函数
+void MainWindow::onSelectVideoFile()
+{
+    QString filePath = QFileDialog::getOpenFileName(
+        this, "选择视频文件", QDir::homePath(),
+        "视频文件 (*.mp4 *.h264 *.264);;MP4文件 (*.mp4);;H264文件 (*.h264 *.264);;所有文件 (*.*)"
+    );
+    
+    if (filePath.isEmpty()) {
+        return;  // 用户取消了选择
+    }
+    
+    QFileInfo fileInfo(filePath);
+    QString fileName = fileInfo.fileName();
+    QString baseName = fileInfo.baseName();
+    QString extension = fileInfo.suffix().toLower();
+    QString exeDir = QCoreApplication::applicationDirPath();
+    
+    // 检查是否为支持的格式
+    if (extension != "mp4" && extension != "h264" && extension != "264") {
+        QMessageBox::warning(this, "文件格式错误", 
+            "目前只支持MP4和H264格式文件。\n请选择正确的文件格式。");
+        return;
+    }
+    
+    // 如果是H264文件，复制到exe同级目录
+    if (extension == "h264" || extension == "264") {
+        QString targetH264Path = exeDir + "/" + fileName;
+        
+        // 如果源文件已经在目标位置，则不需要复制
+        if (filePath == targetH264Path) {
+            m_selectedFilePath = filePath;
+            m_filePathEdit->setText(fileName);
+            m_startButton->setEnabled(true);
+            QMessageBox::information(this, "文件准备完成", 
+                "H264文件已准备就绪，可以开始推流。");
+            return;
+        }
+        
+        // 显示复制进度对话框
+        QProgressDialog progress("正在复制H264文件...", "取消", 0, 100, this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.setMinimumDuration(0);
+        progress.setValue(10);
+        
+        // 删除目标位置可能存在的同名文件
+        if (QFile::exists(targetH264Path)) {
+            QFile::remove(targetH264Path);
+        }
+        
+        // 复制文件
+        progress.setValue(50);
+        if (QFile::copy(filePath, targetH264Path)) {
+            progress.setValue(100);
+            m_selectedFilePath = targetH264Path;
+            m_filePathEdit->setText(fileName);
+            m_startButton->setEnabled(true);
+            QMessageBox::information(this, "文件准备完成", 
+                "H264文件已复制到程序目录，可以开始推流。");
+        } else {
+            progress.cancel();
+            QMessageBox::critical(this, "文件复制失败", 
+                "无法复制H264文件到程序目录。");
+        }
+        
+        return;
+    }
+    
+    // 处理MP4文件
+    if (extension == "mp4") {
+        QString targetMP4Path = exeDir + "/" + fileName;
+        QString h264FileName = baseName + ".h264";
+        QString targetH264Path = exeDir + "/" + h264FileName;
+        
+        QProgressDialog *progress = new QProgressDialog("正在准备视频文件...", "取消", 0, 100, this);
+        progress->setWindowModality(Qt::WindowModal);
+        progress->setMinimumDuration(0);
+        progress->setAutoClose(true);
+        progress->setValue(10);
+        
+        // 如果目标H264已存在，询问是否使用
+        if (QFile::exists(targetH264Path)) {
+            progress->setValue(30);
+            progress->setLabelText("检测到H264文件已存在...");
+            QCoreApplication::processEvents();
+            
+            QMessageBox::StandardButton reply = QMessageBox::question(this, "文件已存在",
+                "程序目录中已存在同名H264文件，是否直接使用？\n\n"
+                "选择\"是\"：使用已有H264文件\n"
+                "选择\"否\"：重新转换MP4文件",
+                QMessageBox::Yes | QMessageBox::No);
+                
+            if (reply == QMessageBox::Yes) {
+                // 使用已有H264文件
+                m_selectedFilePath = targetH264Path;
+                m_filePathEdit->setText(h264FileName);
+                m_startButton->setEnabled(true);
+                progress->setValue(100);
+                QMessageBox::information(this, "文件准备完成", 
+                    "将使用已有的H264文件进行推流。");
+                return;
+            }
+        }
+        
+        // 复制MP4文件到exe同级目录
+        progress->setValue(40);
+        progress->setLabelText("正在复制MP4文件...");
+        QCoreApplication::processEvents();
+        
+        // 如果目标位置已有同名MP4文件，先删除
+        if (QFile::exists(targetMP4Path) && targetMP4Path != filePath) {
+            QFile::remove(targetMP4Path);
+        }
+        
+        // 如果源文件和目标不同，需要复制
+        if (targetMP4Path != filePath) {
+            if (!QFile::copy(filePath, targetMP4Path)) {
+                progress->cancel();
+                QMessageBox::critical(this, "文件复制失败", 
+                    "无法复制MP4文件到程序目录。");
+                return;
+            }
+        }
+        
+        // 开始转换
+        progress->setValue(60);
+        progress->setLabelText("正在转换MP4到H264，请稍候...");
+        QCoreApplication::processEvents();
+        
+        // 使用FFmpegLoader转换文件
+        if (FFmpegLoader::convertMP4ToH264(targetMP4Path, targetH264Path)) {
+            progress->setValue(100);
+            progress->setLabelText("转换完成！");
+            QCoreApplication::processEvents();
+            
+            m_selectedFilePath = targetH264Path;
+            m_filePathEdit->setText(h264FileName);
+            m_startButton->setEnabled(true);
+            
+            QMessageBox::information(this, "转换成功", 
+                "MP4文件已成功转换为H264格式，可以开始推流。");
+        } else {
+            progress->cancel();
+            QMessageBox::critical(this, "转换失败", 
+                "MP4转换失败，请检查是否已安装FFmpeg或选择H264格式文件。");
+        }
+    }
+}
+
+// 更新启动按钮状态
+void MainWindow::updateStartButtonState()
+{
+    m_startButton->setEnabled(!m_filePathEdit->text().isEmpty());
 } 

@@ -12,6 +12,7 @@
 #include "Device.h"
 #include "Message.h"
 #include <pugixml.hpp>
+#include <QProgressDialog>
 
 namespace Ui {
 class MainWindow;
@@ -29,6 +30,8 @@ private slots:
     void onStartButtonClicked();
     void onDeviceCreated(std::shared_ptr<Device> device);
     void onDeviceStatusUpdated(int index, Message msg);
+    void onSelectVideoFile();
+    void updateStartButtonState();
 
 private:
     void setupUi();
@@ -40,6 +43,9 @@ private:
     void stopDevices();
     QString getConfigFilePath();
     bool saveXmlToFile(pugi::xml_document& doc, const QString& filePath);
+    bool prepareFFmpeg(QProgressDialog* progress);
+    bool copyFileWithProgress(const QString& source, const QString& destination);
+    bool checkFfmpegWorks(const QString& ffmpegPath);
 
     QTableWidget *m_deviceTable;
     QPushButton *m_startButton;
@@ -48,6 +54,9 @@ private:
     QSpinBox *m_serverPortSpin;
     QLineEdit *m_passwordEdit;
     QSpinBox *m_deviceCountSpin;
+    QPushButton* m_fileSelectButton;
+    QLineEdit* m_filePathEdit;
+    QString m_selectedFilePath;
 
     DeviceThread *m_deviceThread;
     QMap<int, std::shared_ptr<Device>> m_devices;

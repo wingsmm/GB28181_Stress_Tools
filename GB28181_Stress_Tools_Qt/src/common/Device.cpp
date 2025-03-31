@@ -18,34 +18,46 @@ void logSipError(const char* operation, int errorCode, int index) {
 }
 
 void Device::mobile_position_task() {
+    std::cout << "设备" << list_index+1 << "启动位置上报任务" << std::endl;
+    
     while (is_running && is_mobile_position_running) {
-        {
-            osip_message_t * notify_message = NULL;
-            ExosipCtxLock lock(sip_context);
-            if (OSIP_SUCCESS != eXosip_insubscription_build_notify(sip_context, mobile_postition_dialog_id, EXOSIP_SUBCRSTATE_PENDING, EXOSIP_NOTIFY_PENDING, &notify_message)) {
-                std::cout << "eXosip_insubscription_build_notify error" << std::endl;
-                break;
-            }
-            std::stringstream ss;
-            ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
-            ss << "<Notify>\r\n";
-            ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
-            ss << "<CmdType>MobilePosition</CmdType>\r\n";
-            ss << "<SN>" << mobile_position_sn << "</SN>\r\n";
-            ss << "<Time>" << "</Time>\r\n";
-            ss << "<Longitude>" << "116.405994" << "</Longitude>\r\n";
-            ss << "<Latitude>" << "39.914492" << "</Latitude>\r\n";
-            ss << "<Speed>0.0</Speed>\r\n";
-            ss << "<Direction>0.0</Direction>\r\n";
-            ss << "<Altitude>0.0</Altitude>\r\n";
-            ss << "</Notify>\r\n";
-            osip_message_set_content_type(notify_message, "Application/MANSCDP+xml");
-            osip_message_set_body(notify_message, ss.str().c_str(), strlen(ss.str().c_str()));
-            eXosip_insubscription_send_request(sip_context, mobile_postition_dialog_id, notify_message);
+        // 随机生成位置数据(模拟移动设备)
+        double longitude = 118.0 + ((rand() % 1000) / 10000.0);
+        double latitude = 31.0 + ((rand() % 1000) / 10000.0);
+        
+        // 构造XML消息
+        std::stringstream ss;
+        ss << "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+        ss << "<Notify>\r\n";
+        ss << "<CmdType>MobilePosition</CmdType>\r\n";
+        ss << "<SN>" << get_sn() << "</SN>\r\n";
+        ss << "<DeviceID>" << deviceId << "</DeviceID>\r\n";
+        ss << "<Time>" << get_current_time() << "</Time>\r\n";
+        ss << "<Longitude>" << longitude << "</Longitude>\r\n";
+        ss << "<Latitude>" << latitude << "</Latitude>\r\n";
+        ss << "<Speed>5.5</Speed>\r\n";
+        ss << "<Direction>120.5</Direction>\r\n";
+        ss << "<Altitude>100.5</Altitude>\r\n";
+        ss << "</Notify>\r\n";
+        
+        // 发送NOTIFY消息
+        osip_message_t* notify = nullptr;
+        eXosip_insubscription_build_notify(sip_context, mobile_postition_dialog_id, 
+                                          EXOSIP_SUBCRSTATE_ACTIVE, 0, &notify);
+        
+        if (notify) {
+            osip_message_set_content_type(notify, "Application/MANSCDP+xml");
+            osip_message_set_body(notify, ss.str().c_str(), ss.str().length());
+            eXosip_insubscription_send_request(sip_context, mobile_postition_dialog_id, notify);
+            std::cout << "设备" << list_index+1 << "发送位置信息：经度 " << longitude << ", 纬度 " << latitude << std::endl;
         }
+        
+        // 等待下一个更新周期
         std::unique_lock<std::mutex> lck(_mobile_position_mutex);
         _mobile_postion_condition.wait_for(lck, std::chrono::seconds(5));
     }
+    
+    std::cout << "设备" << list_index+1 << "位置上报任务已结束" << std::endl;
 }
 
 void Device::create_heartbeat_task() {
@@ -72,15 +84,20 @@ void Device::create_push_stream_task() {
 }
 
 void Device::create_mobile_position_task() {
-    if (mobile_position_thread) {
-        is_mobile_position_running = false;
-        if (mobile_position_thread->joinable()) {
-            _mobile_postion_condition.notify_one();
-            mobile_position_thread->join();
-        }
+    std::cout << "设备" << list_index+1 << "创建位置上报任务" << std::endl;
+    
+    if (is_mobile_position_running) {
+        std::cout << "设备" << list_index+1 << "位置上报任务已在运行中" << std::endl;
+        return;
     }
+    
     is_mobile_position_running = true;
+    
     mobile_position_thread = std::make_shared<std::thread>(&Device::mobile_position_task, this);
+    
+    if (callback != nullptr) {
+        callback(list_index, Message{ STATUS_TYPE, "位置上报已启动" });
+    }
 }
 
 void Device::process_call(eXosip_event_t * evt) {
@@ -399,17 +416,17 @@ void Device::process_request() {
         
         switch (evt->type) {
         case EXOSIP_IN_SUBSCRIPTION_NEW: {
-            std::cout << "Device" << list_index+1 << "received subscription request" << std::endl;
+            std::cout << "设备" << list_index+1 << "接收到订阅请求" << std::endl;
             ExosipCtxLock lolck(sip_context);
-            osip_message_t * answer = NULL;
+            osip_message_t * answer = nullptr;
             if (OSIP_SUCCESS != eXosip_insubscription_build_answer(sip_context, evt->tid, 200, &answer)) {
-                std::cout << "Device" << list_index+1 << "failed to create subscription reply" << std::endl;
+                std::cout << "设备" << list_index+1 << "创建订阅回复失败" << std::endl;
                 break;
             }
             eXosip_insubscription_send_answer(sip_context, evt->tid, 200, answer);
             mobile_postition_dialog_id = evt->did;
             create_mobile_position_task();
-            std::cout << "Device" << list_index+1 << "replied to subscription request and created position task" << std::endl;
+            std::cout << "设备" << list_index+1 << "响应订阅请求并开始位置上报" << std::endl;
             break;
         }
 
@@ -784,9 +801,13 @@ Device::~Device() {
 }
 
 std::string Device::get_current_time() {
-    auto now = std::chrono::system_clock::now();
-    auto now_c = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S");
-    return ss.str();
+    time_t now = time(0);
+    struct tm tm_now;
+    char buf[80];
+    
+    localtime_s(&tm_now, &now);
+    
+    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &tm_now);
+    
+    return std::string(buf);
 }

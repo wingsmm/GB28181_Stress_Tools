@@ -2,9 +2,13 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+#include <QTextCodec>
+#include <QDir>
+#include <QProcess>
 #include "MainWindow.h"
 #include "Device.h"
 #include "Message.h"
+#include "common/FFmpegLoader.h"
 
 // 为Message类型定义Q_DECLARE_METATYPE，使其可注册
 Q_DECLARE_METATYPE(Message)
@@ -57,6 +61,17 @@ private:
     QString buffer;
 };
 
+// 手动复制文件的辅助函数
+bool copyFile(const QString& source, const QString& destination) {
+    if (QFile::exists(destination)) {
+        QFile::remove(destination);
+    }
+    
+    bool success = QFile::copy(source, destination);
+    qDebug() << "复制文件:" << source << "->" << destination << (success ? "成功" : "失败");
+    return success;
+}
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -73,6 +88,9 @@ int main(int argc, char *argv[])
     static QtStreamBuf qtStreamBuf;
     std::cout.rdbuf(&qtStreamBuf);
     std::cerr.rdbuf(&qtStreamBuf);
+    
+    // 支持中文
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
     
     // 创建并显示主窗口
     MainWindow mainWindow;

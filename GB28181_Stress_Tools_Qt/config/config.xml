@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <config>
-	<serverId>34020000002000000001</serverId>
-	<serverIp>192.168.8.196</serverIp>
-	<serverPort>8116</serverPort>
-	<password>12345678</password>
+	<serverId>44010200492000000001</serverId>
+	<serverIp>192.168.21.100</serverIp>
+	<serverPort>5061</serverPort>
+	<password>admin123</password>
 	<count>10</count>
 </config>

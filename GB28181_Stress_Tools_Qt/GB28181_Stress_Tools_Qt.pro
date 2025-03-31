@@ -3,6 +3,7 @@ CODECFORTR = UTF-8
 CODECFORSRC = UTF-8
 
 QT += core gui widgets network
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
 
@@ -15,8 +16,8 @@ win32: QMAKE_CXXFLAGS += -wd4819 /utf-8
 # 定义
 DEFINES += QT_DEPRECATED_WARNINGS _AFXDLL USE_QT_VERSION _CRT_SECURE_NO_WARNINGS
 
-# 包含所有源文件
-SOURCES += \
+# 设置C和C++源文件
+SOURCES_CPP = \
     src/main.cpp \
     src/ui/MainWindow.cpp \
     src/core/DeviceThread.cpp \
@@ -25,8 +26,14 @@ SOURCES += \
     src/common/NaluProvider.cpp \
     src/common/UDPClient.cpp \
     src/common/gb28181_header_maker.cpp \
-    src/common/h264_parser.c \
-    src/common/pugixml.cpp
+    src/common/pugixml.cpp \
+    src/common/FFmpegLoader.cpp
+
+SOURCES_C = \
+    src/common/h264_parser.c
+
+# 包含所有源文件
+SOURCES = $$SOURCES_CPP $$SOURCES_C
 
 HEADERS += \
     src/ui/MainWindow.h \
@@ -43,7 +50,11 @@ HEADERS += \
     src/common/gb28181_header_maker.h \
     src/common/h264_parser.h \
     src/common/pugiconfig.hpp \
-    src/common/pugixml.hpp
+    src/common/pugixml.hpp \
+    src/common/FFmpegLoader.h
+
+# 为C文件设置编译标志
+QMAKE_CFLAGS += -x c
 
 # 包含头文件路径
 INCLUDEPATH += \
@@ -62,7 +73,8 @@ INCLUDEPATH += \
     $$[QT_INSTALL_HEADERS]/QtCore \
     $$[QT_INSTALL_HEADERS]/QtGui \
     $$[QT_INSTALL_HEADERS]/QtWidgets \
-    $$[QT_INSTALL_HEADERS]/QtNetwork
+    $$[QT_INSTALL_HEADERS]/QtNetwork \
+    $$PWD/ffmpeg/include
 
 # 库文件路径设置
 LIB_PATH = $$PWD/../lib
@@ -130,4 +142,4 @@ resources.prefix = /
 # 调试信息
 message(PWD is $$PWD)
 message(LIB_PATH is $$LIB_PATH)
-win32:message(LIB_PATH_WIN is $$LIB_PATH_WIN) 
+win32:message(LIB_PATH_WIN is $$LIB_PATH_WIN)

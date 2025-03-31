@@ -12,7 +12,16 @@
 
 #include <stdio.h>
 #include "NaluType.h"
-int simplest_h264_parser(const char *url,void(*out_nalu)(char * buffer,int size, NaluType type));
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int simplest_h264_parser(const char *url, void(*out_nalu)(char * buffer, int size, NaluType type));
 //int simplest_h264_parser(const char *url);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* h264_parser_h */
