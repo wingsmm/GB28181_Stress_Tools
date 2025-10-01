@@ -1,12 +1,56 @@
-# MFC相关
-/.vs
-/Debug
-/GB28181_Stress_Tools/Debug
-/GB28181_Stress_Tools/x64
-/x64/Debug
+# Visual Studio 相关
+/.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+*.vcxproj.filters.user
+
+# 编译生成的目录和文件
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]ib/
+[Ll]og/
+*.obj
+*.pdb
+*.idb
+*.ilk
 *.iobj
 *.ipdb
-*.pdb
+*.lib
+*.exp
+*.dll
+*.exe
+*.manifest
+*.pch
+*.res
+*.tlog/
+*.log
+*.recipe
+*.lastbuildstate
+*.cache
+*.tmp
+*.temp
+*.FileListAbsolute.txt
+
+# MFC特有文件
+*.aps
+*.clw
+*.opt
+*.plg
+*.positions
+*.ncb
+*.tags
+*.suo
+*.sdf
+*.opensdf
+*.db
+*.ipch
 
 # Qt相关
 /build*/
@@ -27,8 +71,42 @@ Makefile*
 *.user
 *.stash
 object_script.*
-bin/
-lib/
 
-# ffmpeg相关
-/tools/ffmpeg-4.2.1-win32-shared/
+# CMake相关
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# 临时和缓存文件
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.bak
+*.orig
+*.rej
+
+# 依赖库和工具
+/tools/ffmpeg*/
+/3rdparty/
+/external/
+
+# 运行时生成文件
+config.ini
+*.264
+*.h264
+*.mp4
+*.avi
+
+# IDE和编辑器配置
+.vscode/
+.idea/
+*.sublime-*
+
+# 系统文件
+ehthumbs.db
+Desktop.ini
